@@ -54,6 +54,11 @@ if ! command -v gh >/dev/null 2>&1; then
   exit 1
 fi
 
+if ! command -v jq >/dev/null 2>&1; then
+  echo "Error: jq is not installed." >&2
+  exit 1
+fi
+
 if ! gh auth status >/dev/null 2>&1; then
   echo "Error: gh CLI is not authenticated. Run: gh auth login" >&2
   exit 1
@@ -63,24 +68,22 @@ RULESET_NAME="Block force pushes on all branches"
 API_VERSION="2026-03-10"
 
 build_payload() {
-  cat <<EOF
-{
-  "name": "$RULESET_NAME",
-  "target": "branch",
-  "enforcement": "active",
-  "bypass_actors": [],
-  "conditions": {
-    "ref_name": {
-      "include": ["refs/heads/*"],
-      "exclude": []
-    }
-  },
-  "rules": [
-    { "type": "non_fast_forward" },
-    { "type": "deletion" }
-  ]
-}
-EOF
+  jq -n --arg name "$RULESET_NAME" '{
+    name: $name,
+    target: "branch",
+    enforcement: "active",
+    bypass_actors: [],
+    conditions: {
+      ref_name: {
+        include: ["refs/heads/*"],
+        exclude: []
+      }
+    },
+    rules: [
+      { type: "non_fast_forward" },
+      { type: "deletion" }
+    ]
+  }'
 }
 
 create_ruleset() {
@@ -98,12 +101,12 @@ create_ruleset() {
   fi
 
   created_id="$(
-    gh api -X POST "repos/$repo_owner/$repo/rulesets" \
+    printf '%s' "$payload" | gh api -X POST "repos/$repo_owner/$repo/rulesets" \
       -H "Accept: application/vnd.github+json" \
       -H "Content-Type: application/json" \
       -H "X-GitHub-Api-Version: $API_VERSION" \
-      --jq '.id' \
-      --input - <<<"$payload"
+      --input - \
+      --jq '.id'
   )" || {
     echo "  ERROR: failed to create ruleset for $repo_owner/$repo" >&2
     return 1
@@ -116,7 +119,11 @@ create_ruleset() {
   fi
 }
 
+failures=0
+
 while IFS= read -r full; do
+  local_existing_id=""
+
   [[ -z "$full" ]] && continue
 
   repo_owner="${full%%/*}"
@@ -124,21 +131,34 @@ while IFS= read -r full; do
 
   echo "Repo: $full"
 
-  existing_id="$(
-    gh api "repos/$repo_owner/$repo/rulesets" \
-      --jq ".[] | select(.name == \"$RULESET_NAME\") | .id" 2>/dev/null || true
-  )"
-
-  if [[ -n "$existing_id" ]]; then
-    echo "  OK: ruleset already exists: $existing_id"
+  if ! local_existing_id="$(
+    gh api --paginate "repos/$repo_owner/$repo/rulesets" \
+      -H "Accept: application/vnd.github+json" \
+      -H "X-GitHub-Api-Version: $API_VERSION" \
+      --jq ".[] | select(.name == \"$RULESET_NAME\") | .id"
+  )"; then
+    echo "  ERROR: failed to list rulesets for $full" >&2
+    failures=$((failures + 1))
     continue
   fi
 
-  create_ruleset "$repo_owner" "$repo"
+  if [[ -n "$local_existing_id" ]]; then
+    echo "  OK: ruleset already exists: $local_existing_id"
+    continue
+  fi
+
+  if ! create_ruleset "$repo_owner" "$repo"; then
+    failures=$((failures + 1))
+  fi
 done < <(
   gh repo list "$OWNER" \
     --limit 1000 \
     --no-archived \
-    --json nameWithOwner,viewerCanAdminister,isArchived \
-    --jq '.[] | select(.viewerCanAdminister == true and .isArchived == false) | .nameWithOwner'
+    --json nameWithOwner,viewerCanAdminister \
+    --jq '.[] | select(.viewerCanAdminister == true) | .nameWithOwner'
 )
+
+if (( failures > 0 )); then
+  echo "Completed with $failures failure(s)." >&2
+  exit 1
+fi
