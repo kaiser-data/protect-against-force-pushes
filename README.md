@@ -4,6 +4,8 @@ Mass-apply GitHub rulesets that block force pushes and branch deletions across e
 
 If an AI agent, CLI workflow, or bulk script can touch all your repos, one bad command can too. This script adds a server-side safety rail behind that power.
 
+![Threat and protection overview](./assets/threat-protection.png)
+
 ## AI safety for GitHub admins
 
 More teams are letting AI work inside terminals, CI systems, and repository automation. That increases speed, but it also increases the chance of high-impact mistakes being executed at machine speed.
