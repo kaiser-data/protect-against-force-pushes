@@ -119,12 +119,13 @@ create_ruleset() {
   fi
 }
 
-failures=0
+process_repo() {
+  local full="$1"
+  local local_existing_id=""
+  local repo_owner
+  local repo
 
-while IFS= read -r full; do
-  local_existing_id=""
-
-  [[ -z "$full" ]] && continue
+  [[ -z "$full" ]] && return 0
 
   repo_owner="${full%%/*}"
   repo="${full#*/}"
@@ -138,16 +139,25 @@ while IFS= read -r full; do
       --jq ".[] | select(.name == \"$RULESET_NAME\") | .id"
   )"; then
     echo "  ERROR: failed to list rulesets for $full" >&2
-    failures=$((failures + 1))
-    continue
+    return 1
   fi
 
   if [[ -n "$local_existing_id" ]]; then
     echo "  OK: ruleset already exists: $local_existing_id"
-    continue
+    return 0
   fi
 
   if ! create_ruleset "$repo_owner" "$repo"; then
+    return 1
+  fi
+}
+
+failures=0
+
+while IFS= read -r full; do
+  [[ -z "$full" ]] && continue
+
+  if ! process_repo "$full"; then
     failures=$((failures + 1))
   fi
 done < <(
