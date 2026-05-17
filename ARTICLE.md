@@ -1,12 +1,16 @@
-# Why Force-Push Protection Matters in the Age of `gh` and AI Automation
+# Why Force-Push Protection Matters in the Age of AI GitHub Automation
 
 GitHub's CLI is extremely capable. With a valid token and admin access, a single command or script can modify settings, rewrite workflow state, or push policy changes across many repositories in minutes.
 
-That power is exactly why repository guardrails matter.
+Now add AI agents to that environment and the stakes go up again.
 
-## The real problem
+An AI agent can generate commands quickly, act across many repositories, and operate confidently even when its reasoning is wrong. That does not make AI unique in principle, but it does make mistakes faster, broader, and easier to trigger.
 
-The risk is not "AI" by itself. The risk is high-privilege automation.
+That is why repository guardrails matter.
+
+## The real AI risk
+
+The risk is not "intelligence." The risk is high-privilege automation with weak boundaries.
 
 Today that automation may be:
 
@@ -18,6 +22,8 @@ Today that automation may be:
 
 All of those can make the same class of mistake: destructive branch operations at scale.
 
+AI deserves special attention because teams are increasingly willing to let it act before they have matched that speed with equivalent safeguards.
+
 ## What this project does
 
 This project applies a GitHub repository ruleset to every repository you administer and blocks:
@@ -25,7 +31,7 @@ This project applies a GitHub repository ruleset to every repository you adminis
 - force pushes
 - branch deletions
 
-That means even if a script or agent attempts a dangerous history rewrite, GitHub rejects it at the policy layer.
+That means even if an AI agent, generated script, or operator-assisted workflow attempts a dangerous history rewrite, GitHub rejects it at the policy layer.
 
 ## Why that is valuable
 
@@ -38,15 +44,23 @@ Blocking force pushes is a simple example of that philosophy:
 - automation mistakes become visible faster
 - a compromised or over-scoped token has less room to cause irreversible damage
 
-## Does this "protect against AI"?
+For AI systems specifically, this matters because policy is more reliable than prompt quality. You do not want your protection model to depend on whether the agent interpreted an instruction correctly.
 
-Not in the marketing sense, and it should not be described that way.
+## Does this protect against AI?
+
+Yes, in a narrow and useful sense.
+
+It protects your repositories from one concrete class of AI-enabled damage: destructive branch history operations performed through legitimate GitHub access.
+
+No, in the broader marketing sense.
+
+It does not make AI trustworthy, detect malicious prompts, or replace permission design.
 
 A better claim is:
 
 > This reduces the blast radius of AI-assisted or CLI-based GitHub administration by enforcing server-side branch safety rules.
 
-That is narrower, but technically correct.
+That is narrower, but technically correct, and stronger than vague "AI safety" language.
 
 ## Why `gh` can be dangerous
 
@@ -62,6 +76,8 @@ If you combine:
 then the CLI becomes a fast path to large mistakes.
 
 The answer is not to avoid the CLI. The answer is to put policy behind it.
+
+The same applies to AI agents. If an agent can operate `gh`, then repository rulesets should exist before the agent does.
 
 ## Bottom line
 

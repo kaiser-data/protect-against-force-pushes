@@ -2,7 +2,22 @@
 
 Mass-apply GitHub rulesets that block force pushes and branch deletions across every repository you administer.
 
-If `gh` can touch all your repos, one bad command can too. This script puts a server-side safety rail behind that power.
+If an AI agent, CLI workflow, or bulk script can touch all your repos, one bad command can too. This script adds a server-side safety rail behind that power.
+
+## AI safety for GitHub admins
+
+More teams are letting AI work inside terminals, CI systems, and repository automation. That increases speed, but it also increases the chance of high-impact mistakes being executed at machine speed.
+
+This project is built for that exact risk.
+
+It helps protect your GitHub estate when:
+
+- an AI coding agent runs `gh` with repo admin permissions
+- an LLM-generated script is accepted too quickly
+- an automation pipeline gets broad GitHub access
+- a human operator delegates sensitive admin work to AI-assisted tooling
+
+The core idea is simple: do not rely on the caller to be careful. Put protection on the GitHub side.
 
 ## What it protects
 
@@ -13,9 +28,11 @@ The script creates a repository ruleset with:
 
 It targets all branches and works as an idempotent enforcement pass across a user or organization.
 
+That means even if an AI-driven workflow attempts a destructive branch rewrite, GitHub can reject it before damage spreads.
+
 ## Why this is useful
 
-The problem is not just humans making mistakes. The problem is any high-privilege actor operating at scale:
+The problem is not just humans making mistakes. The problem is high-privilege automation operating at scale:
 
 - shell scripts
 - CI jobs
@@ -23,7 +40,7 @@ The problem is not just humans making mistakes. The problem is any high-privileg
 - rushed admin work with `gh`
 - AI agents using a terminal and a GitHub token
 
-This project does not "stop AI." It does something better defined: it reduces the blast radius of destructive GitHub operations by enforcing branch safety at the platform layer.
+This project does not "detect AI" or "block AI." It does something more useful: it limits what AI-assisted admin workflows can break by enforcing branch safety at the platform layer.
 
 ## Quick start
 
@@ -70,10 +87,17 @@ Repo: acme/frontend
 Local discipline is not enough when automation has broad permission.
 
 You can trust developers.
-You can review scripts.
-You can still lose branch history with one bad bulk action.
+You can review prompts.
+You can still lose branch history with one bad AI-generated action.
 
 Rulesets are valuable because GitHub enforces them even when the caller is a CLI, a script, or an automated agent.
+
+That is the key AI protection property here:
+
+- the model can be wrong
+- the script can be unsafe
+- the token can still be real
+- GitHub policy remains the final control
 
 ## Scope and limits
 
@@ -85,10 +109,12 @@ It helps against:
 - destructive admin scripts
 - unsafe automation defaults
 - overpowered AI-assisted workflows
+- AI agents acting with excessive repository permissions
 
 It does not replace:
 
 - least-privilege tokens
+- sandboxing for AI agents
 - required reviews
 - status checks
 - audit logging
