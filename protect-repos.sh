@@ -4,11 +4,13 @@ set -euo pipefail
 usage() {
   cat <<'EOF'
 Usage:
-  ./protect-repos.sh [--dry-run] <github-user-or-org>
+  ./protect-repos.sh [--dry-run] [--audit] [--format table|csv] <github-user-or-org>
 
 Examples:
   ./protect-repos.sh my-org
   ./protect-repos.sh --dry-run my-org
+  ./protect-repos.sh --audit my-org
+  ./protect-repos.sh --audit --format csv my-org
 
 Requirements:
   - gh CLI installed and authenticated
@@ -17,12 +19,26 @@ EOF
 }
 
 DRY_RUN=0
+MODE="enforce"
+OUTPUT_FORMAT="table"
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --dry-run)
       DRY_RUN=1
       shift
+      ;;
+    --audit)
+      MODE="audit"
+      shift
+      ;;
+    --format)
+      OUTPUT_FORMAT="${2:-}"
+      if [[ -z "$OUTPUT_FORMAT" ]]; then
+        echo "Error: --format requires a value." >&2
+        exit 1
+      fi
+      shift 2
       ;;
     -h|--help)
       usage
@@ -61,6 +77,11 @@ fi
 
 if ! gh auth status >/dev/null 2>&1; then
   echo "Error: gh CLI is not authenticated. Run: gh auth login" >&2
+  exit 1
+fi
+
+if [[ "$OUTPUT_FORMAT" != "table" && "$OUTPUT_FORMAT" != "csv" ]]; then
+  echo "Error: --format must be 'table' or 'csv'." >&2
   exit 1
 fi
 
@@ -119,9 +140,71 @@ create_ruleset() {
   fi
 }
 
-process_repo() {
+get_ruleset_status() {
   local full="$1"
   local local_existing_id=""
+  local stderr_file
+  local repo_owner
+  local repo
+  local gh_output
+  local gh_status=0
+
+  [[ -z "$full" ]] && return 0
+
+  repo_owner="${full%%/*}"
+  repo="${full#*/}"
+
+  stderr_file="$(mktemp)"
+
+  gh_output="$(
+    gh api --paginate "repos/$repo_owner/$repo/rulesets" \
+      -H "Accept: application/vnd.github+json" \
+      -H "X-GitHub-Api-Version: $API_VERSION" \
+      --jq ".[] | select(.name == \"$RULESET_NAME\") | .id" \
+      2>"$stderr_file"
+  )" || gh_status=$?
+
+  if (( gh_status != 0 )); then
+    if grep -q "Upgrade to GitHub Pro or make this repository public" "$stderr_file"; then
+      rm -f "$stderr_file"
+      printf 'blocked_by_plan\t-\n'
+      return 0
+    fi
+
+    cat "$stderr_file" >&2
+    rm -f "$stderr_file"
+    printf 'error\t-\n'
+    return 1
+  fi
+
+  rm -f "$stderr_file"
+  local_existing_id="$gh_output"
+
+  if [[ -n "$local_existing_id" ]]; then
+    printf 'protected\t%s\n' "$local_existing_id"
+    return 0
+  fi
+
+  printf 'missing\t-\n'
+}
+
+print_audit_row() {
+  local repo="$1"
+  local status="$2"
+  local detail="$3"
+
+  if [[ "$OUTPUT_FORMAT" == "csv" ]]; then
+    printf '"%s","%s","%s"\n' "$repo" "$status" "$detail"
+  else
+    printf '%-55s %-18s %s\n' "$repo" "$status" "$detail"
+  fi
+}
+
+process_repo() {
+  local full="$1"
+  local status_detail
+  local status
+  local detail
   local repo_owner
   local repo
 
@@ -132,19 +215,22 @@ process_repo() {
 
   echo "Repo: $full"
 
-  if ! local_existing_id="$(
-    gh api --paginate "repos/$repo_owner/$repo/rulesets" \
-      -H "Accept: application/vnd.github+json" \
-      -H "X-GitHub-Api-Version: $API_VERSION" \
-      --jq ".[] | select(.name == \"$RULESET_NAME\") | .id"
-  )"; then
+  status_detail="$(get_ruleset_status "$full")" || {
     echo "  ERROR: failed to list rulesets for $full" >&2
     return 1
+  }
+
+  status="${status_detail%%$'\t'*}"
+  detail="${status_detail#*$'\t'}"
+
+  if [[ "$status" == "protected" ]]; then
+    echo "  OK: ruleset already exists: $detail"
+    return 0
   fi
 
-  if [[ -n "$local_existing_id" ]]; then
-    echo "  OK: ruleset already exists: $local_existing_id"
-    return 0
+  if [[ "$status" == "blocked_by_plan" ]]; then
+    echo "  ERROR: rulesets unavailable for this repository plan" >&2
+    return 1
   fi
 
   if ! create_ruleset "$repo_owner" "$repo"; then
@@ -152,21 +238,56 @@ process_repo() {
   fi
 }
 
-failures=0
+audit_repo() {
+  local full="$1"
+  local status_detail
+  local status
+  local detail
 
-while IFS= read -r full; do
-  [[ -z "$full" ]] && continue
+  [[ -z "$full" ]] && return 0
 
-  if ! process_repo "$full"; then
-    failures=$((failures + 1))
+  status_detail="$(get_ruleset_status "$full")" || true
+  status="${status_detail%%$'\t'*}"
+  detail="${status_detail#*$'\t'}"
+
+  print_audit_row "$full" "$status" "$detail"
+
+  if [[ "$status" == "error" ]]; then
+    return 1
   fi
-done < <(
+}
+
+list_repos() {
   gh repo list "$OWNER" \
     --limit 1000 \
     --no-archived \
     --json nameWithOwner,viewerCanAdminister \
     --jq '.[] | select(.viewerCanAdminister == true) | .nameWithOwner'
-)
+}
+
+failures=0
+
+if [[ "$MODE" == "audit" ]]; then
+  if [[ "$OUTPUT_FORMAT" == "csv" ]]; then
+    printf '"repo","status","detail"\n'
+  else
+    printf '%-55s %-18s %s\n' "REPOSITORY" "STATUS" "DETAIL"
+  fi
+fi
+
+while IFS= read -r full; do
+  [[ -z "$full" ]] && continue
+
+  if [[ "$MODE" == "audit" ]]; then
+    if ! audit_repo "$full"; then
+      failures=$((failures + 1))
+    fi
+  else
+    if ! process_repo "$full"; then
+      failures=$((failures + 1))
+    fi
+  fi
+done < <(list_repos)
 
 if (( failures > 0 )); then
   echo "Completed with $failures failure(s)." >&2
