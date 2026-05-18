@@ -6,6 +6,23 @@ If an AI agent, CLI workflow, or bulk script can touch all your repos, one bad c
 
 ![Threat and protection overview](./assets/threat-protection-simple.png)
 
+## Important limitation
+
+This project uses GitHub repository rulesets.
+
+That means:
+
+- public repositories can use this on GitHub Free
+- private repositories need GitHub Pro, Team, or Enterprise for native ruleset protection
+
+If your repository is private and your GitHub plan does not support rulesets, this script cannot force GitHub to protect it server-side.
+
+In that case you have three real options:
+
+1. make the repository public
+2. upgrade the GitHub plan
+3. add secondary safeguards such as audit mode, local hooks, PR-only workflows, or backup mirroring
+
 ## AI safety for GitHub admins
 
 More teams are letting AI work inside terminals, CI systems, and repository automation. That increases speed, but it also increases the chance of high-impact mistakes being executed at machine speed.
@@ -63,6 +80,8 @@ Dry run first if you want to inspect behavior:
 
 ```bash
 ./protect-repos.sh --dry-run my-org
+./protect-repos.sh --audit my-org
+./protect-repos.sh --audit --format csv my-org
 ```
 
 ## What the script does
@@ -73,6 +92,13 @@ Dry run first if you want to inspect behavior:
 4. Creates it only when missing
 
 That makes repeated runs safe and useful for audits.
+
+Audit mode reports which repositories are:
+
+- `protected`
+- `missing`
+- `blocked_by_plan`
+- `error`
 
 ## Example output
 
@@ -121,6 +147,8 @@ It does not replace:
 - status checks
 - audit logging
 - repository ownership controls
+
+It also does not bypass GitHub plan limits for private repositories.
 
 ## Files
 

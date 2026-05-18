@@ -33,6 +33,16 @@ This project applies a GitHub repository ruleset to every repository you adminis
 
 That means even if an AI agent, generated script, or operator-assisted workflow attempts a dangerous history rewrite, GitHub rejects it at the policy layer.
 
+There is one important platform limit:
+
+- on GitHub Free, this works cleanly for public repositories
+- for private repositories, native ruleset protection requires GitHub Pro, Team, or Enterprise
+
+So this project is strongest when either:
+
+- the repository is public, or
+- the account or organization has the required paid GitHub plan
+
 ## Why that is valuable
 
 Good security controls do not rely on perfect behavior from tools or people. They assume mistakes will happen and limit the damage.
@@ -62,6 +72,11 @@ A better claim is:
 
 That is narrower, but technically correct, and stronger than vague "AI safety" language.
 
+It is also important to be honest about the private-repository case:
+
+- if the repo is private and the plan does not support rulesets, this tool cannot invent server-side protection that GitHub itself does not provide
+- in that situation, you need either a plan upgrade or secondary safeguards such as stricter tokens, local hooks, PR-only workflows, and backups
+
 ## Why `gh` can be dangerous
 
 `gh` is not dangerous because it is bad. It is dangerous because it is effective.
@@ -84,3 +99,5 @@ The same applies to AI agents. If an agent can operate `gh`, then repository rul
 If humans, scripts, or AI agents can operate your GitHub estate through `gh`, repository rulesets are one of the cheapest high-value controls you can add.
 
 They do not remove risk, but they materially reduce how much damage a bad command can do.
+
+For private repositories, that protection depends on your GitHub plan. If the platform does not allow rulesets, use this tool for auditing and combine it with compensating controls, or upgrade the account and enforce the policy natively.
