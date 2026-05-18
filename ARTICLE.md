@@ -24,6 +24,27 @@ All of those can make the same class of mistake: destructive branch operations a
 
 AI deserves special attention because teams are increasingly willing to let it act before they have matched that speed with equivalent safeguards.
 
+## Prompts are not a security boundary
+
+Many teams still rely on instructions such as:
+
+- "do not delete anything"
+- "never touch production"
+- "do not rewrite history"
+
+Those instructions help, but they do not create real safety.
+
+An AI agent can still:
+
+- misunderstand the task
+- choose the wrong command
+- operate with excessive permissions
+- carry out destructive actions against the real target system
+
+That is not limited to GitHub. The same pattern shows up with databases, cloud infrastructure, file systems, CI environments, and servers.
+
+If a model has live credentials, then a markdown file, prompt, or policy note is only advisory. The actual safety line has to live in permissions, platform controls, and recoverability.
+
 ## What this project does
 
 This project applies a GitHub repository ruleset to every repository you administer and blocks:
@@ -93,6 +114,12 @@ then the CLI becomes a fast path to large mistakes.
 The answer is not to avoid the CLI. The answer is to put policy behind it.
 
 The same applies to AI agents. If an agent can operate `gh`, then repository rulesets should exist before the agent does.
+
+The broader lesson is the same everywhere:
+
+- do not trust a prompt as a hard guardrail
+- do not give powerful tools broad credentials without platform limits
+- do not assume the agent will stop itself before a destructive command
 
 ## Bottom line
 

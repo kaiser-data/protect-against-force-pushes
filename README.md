@@ -23,6 +23,27 @@ In that case you have three real options:
 2. upgrade the GitHub plan
 3. add secondary safeguards such as audit mode, local hooks, PR-only workflows, or backup mirroring
 
+## Prompt guardrails are not enough
+
+Telling an AI agent in a markdown file or system prompt:
+
+- "do not force-push"
+- "do not touch production"
+- "do not delete data"
+
+is useful guidance, but it is not a security boundary.
+
+Why:
+
+- prompts can be misunderstood
+- generated commands can still be wrong
+- tools can be over-permissioned
+- one mistaken command can still hit real infrastructure
+
+That is why this project exists.
+
+If an AI has real GitHub, server, or database access, safety instructions alone are not enough. Use platform guardrails, least-privilege credentials, and recovery paths.
+
 ## AI safety for GitHub admins
 
 More teams are letting AI work inside terminals, CI systems, and repository automation. That increases speed, but it also increases the chance of high-impact mistakes being executed at machine speed.
@@ -149,6 +170,8 @@ It does not replace:
 - repository ownership controls
 
 It also does not bypass GitHub plan limits for private repositories.
+
+It also does not assume that AI instructions are reliable protection. A markdown policy or system prompt can reduce mistakes, but it cannot replace server-side enforcement.
 
 ## Files
 
